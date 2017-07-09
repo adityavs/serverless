@@ -19,15 +19,14 @@ Make sure `serverless` is installed. [See installation guide](../../../guide/ins
 ## 2. Build using .NET CLI tools and create zip package
 
 ```
-dotnet restore
-dotnet publish -c release
-
-pushd bin/Release/netcoreapp1.0/publish
-zip -r ./deploy-package.zip ./*
-popd
+# Linux or OSX
+./build.sh
 ```
 
-`./build.sh` runs the dotnet restore and package commands then creates the zip file to upload to lambda.
+```
+# Windows PowerShell
+./build.cmd
+```
 
 ## 3. Deploy
 `serverless deploy` or `sls deploy`. `sls` is shorthand for the Serverless CLI command

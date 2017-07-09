@@ -14,37 +14,44 @@ layout: Doc
 
 To create HTTP endpoints as Event sources for your AWS Lambda Functions, use the Serverless Framework's easy AWS API Gateway Events syntax.
 
-There are two ways you can configure your HTTP endpoints to integrate with your AWS Lambda Functions:
-* lambda-proxy (Recommended)
-* lambda
+There are five ways you can configure your HTTP endpoints to integrate with your AWS Lambda Functions:
+* `lambda-proxy` / `aws-proxy` / `aws_proxy` (Recommended)
+* `lambda` / `aws`
+* `http`
+* `http-proxy` / `http_proxy`
+* `mock`
 
-The difference between these is `lambda-proxy` automatically passes the content of the HTTP request into your AWS Lambda function (headers, body, etc.) and allows you to configure your response (headers, status code, body) in the code of your AWS Lambda Function.  Whereas, the `lambda` method makes you explicitly define headers, status codes, and more in the configuration of each API Gateway Endpoint (not in code).  We highly recommend using the `lambda-proxy` method if it supports your use-case, since the `lambda` method is highly tedious.
+**The Framework uses the `lambda-proxy` method (i.e., everything is passed into your Lambda) by default unless another method is supplied by the user**
 
-By default, the Framework uses the `lambda-proxy` method (i.e., everything is passed into your Lambda), and nothing is required by you to enable it.
+The difference between these is `lambda-proxy` (alternative writing styles are `aws-proxy` and `aws_proxy` for compatibility with the standard AWS integration type naming) automatically passes the content of the HTTP request into your AWS Lambda function (headers, body, etc.) and allows you to configure your response (headers, status code, body) in the code of your AWS Lambda Function.  Whereas, the `lambda` method makes you explicitly define headers, status codes, and more in the configuration of each API Gateway Endpoint (not in code).  We highly recommend using the `lambda-proxy` method if it supports your use-case, since the `lambda` method is highly tedious.
+
+Use `http` for integrating with an HTTP back end, `http-proxy` for integrating with the HTTP proxy integration or `mock` for testing without actually invoking the back end.
 
 ## Lambda Proxy Integration
 
 ### Simple HTTP Endpoint
 
-This setup specifies that the `index` function should be run when someone accesses the API gateway at `users/index` via
+This setup specifies that the `hello` function should be run when someone accesses the API gateway at `hello` via
 a `GET` request.
 
 Here's an example:
 
 ```yml
+# serverless.yml
+
 functions:
   index:
-    handler: users.index
+    handler: handler.hello
     events:
-      - http: GET users/index
+      - http: GET hello
 ```
 
 ```javascript
-// users.js
+// handler.js
 
 'use strict';
 
-exports.handler = function(event, context, callback) {
+module.exports.hello = function(event, context, callback) {
 
     console.log(event); // Contains incoming request data (e.g., query params, headers and more)
 
@@ -70,6 +77,8 @@ JSON.parse(event.body);
 Here we've defined an POST endpoint for the path `posts/create`.
 
 ```yml
+# serverless.yml
+
 functions:
   create:
     handler: posts.create
@@ -83,35 +92,91 @@ functions:
 To set CORS configurations for your HTTP endpoints, simply modify your event configurations as follows:
 
 ```yml
+# serverless.yml
+
 functions:
   hello:
     handler: handler.hello
     events:
       - http:
-          path: user/create
+          path: hello
           method: get
           cors: true
 ```
 
-If you want to use CORS with the lambda-proxy integration, remember to include `Access-Control-Allow-Origin` in your returned headers object, like this:
+Setting `cors` to `true` assumes a default configuration which is equivalent to:
+
+```yml
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          path: hello
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+```
+
+Configuring the `cors` property sets  [Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin), [Access-Control-Allow-Headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers), [Access-Control-Allow-Methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods),[Access-Control-Allow-Credentials](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials) headers in the CORS preflight response.
+
+If you want to use CORS with the lambda-proxy integration, remember to include the `Access-Control-Allow-*` headers in your headers object, like this:
 
 ```javascript
-// users.js
+// handler.js
 
 'use strict';
 
-exports.handler = function(event, context, callback) {
+module.exports.hello = function(event, context, callback) {
 
     const response = {
       statusCode: 200,
       headers: {
-        "Access-Control-Allow-Origin" : "*" // Required for CORS support to work
+        "Access-Control-Allow-Origin" : "*", // Required for CORS support to work
+        "Access-Control-Allow-Credentials" : true // Required for cookies, authorization headers with HTTPS
       },
       body: JSON.stringify({ "message": "Hello World!" })
     };
 
     callback(null, response);
 };
+```
+
+### HTTP Endpoints with `AWS_IAM` Authorizers
+
+If you want to require that the caller submit the IAM user's access keys in order to be authenticated to invoke your Lambda Function, set the authorizer to `AWS_IAM` as shown in the following example:
+
+```yml
+functions:
+  create:
+    handler: posts.create
+    events:
+      - http:
+          path: posts/create
+          method: post
+          authorizer: aws_iam
+```
+
+Which is the short hand notation for:
+
+```yml
+functions:
+  create:
+    handler: posts.create
+    events:
+      - http:
+          path: posts/create
+          method: post
+          authorizer:
+            type: aws_iam
 ```
 
 ### HTTP Endpoints with Custom Authorizers
@@ -131,7 +196,7 @@ functions:
           method: post
           authorizer: authorizerFunc
   authorizerFunc:
-    handler: handlers.authorizerFunc
+    handler: handler.authorizerFunc
 ```
 Or, if you want to configure the Authorizer with more options, you can turn the `authorizer` property into an object as
 shown in the following example:
@@ -150,7 +215,7 @@ functions:
             identitySource: method.request.header.Authorization
             identityValidationExpression: someRegex
   authorizerFunc:
-    handler: handlers.authorizerFunc
+    handler: handler.authorizerFunc
 ```
 
 If the Authorizer function does not exist in your service but exists in AWS, you can provide the ARN of the Lambda
@@ -185,16 +250,56 @@ functions:
             identityValidationExpression: someRegex
 ```
 
+You can also configure an existing Cognito User Pool as the authorizer, as shown
+in the following example:
+
+```yml
+functions:
+  create:
+    handler: posts.create
+    events:
+      - http:
+          path: posts/create
+          method: post
+          authorizer:
+            arn: arn:aws:cognito-idp:us-east-1:xxx:userpool/us-east-1_ZZZ
+```
+
+If you are using the default `lambda-proxy` integration, your attributes will be
+exposed at `event.requestContext.authorizer.claims`.
+
+If you want control more control over which attributes are exposed as claims you
+can switch to `integration: lambda` and add the following configuration. The
+claims will be exposed at `events.cognitoPoolClaims`.
+
+```yml
+functions:
+  create:
+    handler: posts.create
+    events:
+      - http:
+          path: posts/create
+          method: post
+          integration: lambda
+          authorizer:
+            arn: arn:aws:cognito-idp:us-east-1:xxx:userpool/us-east-1_ZZZ
+            claims:
+              - email
+              - nickname
+```
+
 ### Catching Exceptions In Your Lambda Function
 
 In case an exception is thrown in your lambda function AWS will send an error message with `Process exited before completing request`. This will be caught by the regular expression for the 500 HTTP status and the 500 status will be returned.
 
 ### Setting API keys for your Rest API
+
 You can specify a list of API keys to be used by your service Rest API by adding an `apiKeys` array property to the
 `provider` object in `serverless.yml`. You'll also need to explicitly specify which endpoints are `private` and require
 one of the api keys to be included in the request by adding a `private` boolean property to the `http` event object you
 want to set as private. API Keys are created globally, so if you want to deploy your service to different stages make sure
-your API key contains a stage variable as defined below.
+your API key contains a stage variable as defined below. When using API keys, you can optionally define usage plan quota
+and throttle, using `usagePlan` object.
 
 Here's an example configuration for setting API keys for your service Rest API:
 
@@ -206,13 +311,21 @@ provider:
     - myFirstKey
     - ${opt:stage}-myFirstKey
     - ${env:MY_API_KEY} # you can hide it in a serverless variable
+  usagePlan:
+    quota:
+      limit: 5000
+      offset: 2
+      period: MONTH
+    throttle:
+      burstLimit: 200
+      rateLimit: 100
 functions:
   hello:
-  events:
-    - http:
-        path: user/create
-        method: get
-        private: true
+    events:
+      - http:
+          path: user/create
+          method: get
+          private: true
 ```
 
 Please note that those are the API keys names, not the actual values. Once you deploy your service, the value of those API keys will be auto generated by AWS and printed on the screen for you to use.
@@ -242,7 +355,6 @@ functions:
                 url: true
               headers:
                 foo: false
-                bar: true
               paths:
                 bar: false
 ```
@@ -499,58 +611,6 @@ functions:
                       application/xml: $input.path("$.body.errorMessage") # XML return object
                     headers:
                       Content-Type: "'application/json+hal'"
-```
-
-## Enabling CORS with the Lambda Integration Method
-
-```yml
-functions:
-  hello:
-    handler: handler.hello
-    events:
-      - http:
-          path: user/create
-          method: get
-          integration: lambda
-          cors: true
-```
-
-You can equally set your own attributes:
-
-```yml
-functions:
-  hello:
-    handler: handler.hello
-    events:
-      - http:
-          path: user/create
-          method: get
-          integration: lambda
-          cors:
-            origins:
-              - '*'
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-```
-
-This example is the default setting and is exactly the same as the previous example. The `Access-Control-Allow-Methods` header is set automatically, based on the endpoints specified in your service configuration with CORS enabled.
-
-**Note:** If you are using the default lambda proxy integration, remember to include `Access-Control-Allow-Origin` in your returned headers object otherwise CORS will fail.
-
-```
-module.exports.hello = (event, context, callback) => {
-  return callback(null, {
-    statusCode: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*'
-    },
-    body: 'Hello World!'
-  });
-}
 ```
 
 ## Setting an HTTP Proxy on API Gateway

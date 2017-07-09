@@ -10,7 +10,7 @@ layout: Doc
 ### [Read this on the main serverless docs site](https://www.serverless.com/framework/docs/providers/aws/guide/functions)
 <!-- DOCS-SITE-LINK:END -->
 
-# Functions
+# AWS - Functions
 
 If you are using AWS as a provider, all *functions* inside the service are AWS Lambda functions.
 
@@ -24,9 +24,10 @@ service: myService
 
 provider:
   name: aws
-  runtime: nodejs4.3
-  memorySize: 512 # optional, default is 1024
-  timeout: 10 # optional, default is 6
+  runtime: nodejs6.10
+  memorySize: 512 # optional, in MB, default is 1024
+  timeout: 10 # optional, in seconds, default is 6
+  versionFunctions: false # optional, default is true
 
 functions:
   hello:
@@ -34,8 +35,8 @@ functions:
     name: ${self:provider.stage}-lambdaName # optional, Deployed Lambda name
     description: Description of what the lambda function does # optional, Description to publish to AWS
     runtime: python2.7 # optional overwrite, default is provider runtime
-    memorySize: 512 # optional, default is 1024
-    timeout: 10 # optional, default is 6
+    memorySize: 512 # optional, in MB, default is 1024
+    timeout: 10 # optional, in seconds, default is 6
 ```
 
 The `handler` property points to the file and module containing the code you want to run in your function.
@@ -54,7 +55,7 @@ service: myService
 
 provider:
   name: aws
-  runtime: nodejs4.3
+  runtime: nodejs6.10
 
 functions:
   functionOne:
@@ -74,7 +75,7 @@ service: myService
 
 provider:
   name: aws
-  runtime: nodejs4.3
+  runtime: nodejs6.10
   memorySize: 512 # will be inherited by all functions
 
 functions:
@@ -90,7 +91,7 @@ service: myService
 
 provider:
   name: aws
-  runtime: nodejs4.3
+  runtime: nodejs6.10
 
 functions:
   functionOne:
@@ -108,7 +109,7 @@ service: myService
 
 provider:
   name: aws
-  runtime: nodejs4.3
+  runtime: nodejs6.10
   iamRoleStatements: # permissions for all of your functions can be set here
     - Effect: Allow
       Action: # Gives permission to DynamoDB tables in a specific region
@@ -138,7 +139,9 @@ provider:
       -  Effect: "Allow"
          Action:
            - "s3:ListBucket"
-         Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket"} ] ] } # You can put CloudFormation syntax in here.  No one will judge you.  Remember, this all gets translated to CloudFormation.
+         # You can put CloudFormation syntax in here.  No one will judge you.  
+         # Remember, this all gets translated to CloudFormation.
+         Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket"} ] ] }
       -  Effect: "Allow"
          Action:
            - "s3:PutObject"
@@ -147,6 +150,7 @@ provider:
              - ""
              - - "arn:aws:s3:::"
                - "Ref" : "ServerlessDeploymentBucket"
+               - "/*"
 
 functions:
   functionOne:
@@ -218,9 +222,13 @@ functions:
 
 Then, when you run `serverless deploy`, VPC configuration will be deployed along with your lambda function.
 
+**VPC IAM permissions**
+
+The Lambda function execution role must have permissions to create, describe and delete [Elastic Network Interfaces](http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_ElasticNetworkInterfaces.html) (ENI). When VPC configuration is provided the default AWS `AWSLambdaVPCAccessExecutionRole` will be associated with your Lambda execution role. In case custom roles are provided be sure to include the proper [ManagedPolicyArns](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html#cfn-iam-role-managepolicyarns). For more information please check [configuring a Lambda Function for Amazon VPC Access](http://docs.aws.amazon.com/lambda/latest/dg/vpc.html)
+
 ## Environment Variables
 
-You can add Environment Variable configuration to a specific function in `serverless.yml` by adding an `environment` object property in the function configuration. This object should contain a a key/value collection of string:string:
+You can add environment variable configuration to a specific function in `serverless.yml` by adding an `environment` object property in the function configuration. This object should contain a key/value collection of strings:
 
 ```yml
 # serverless.yml
@@ -234,7 +242,7 @@ functions:
       TABLE_NAME: tableName
 ```
 
-Or if you want to apply Environment Variable configuration to all functions in your service, you can add the configuration to the higher level `provider` object. Environment Variable configured at the function level are overwriting the ones defined at the service level. For example:
+Or if you want to apply environment variable configuration to all functions in your service, you can add the configuration to the higher level `provider` object. Environment variables configured at the function level are merged with those at the provider level, so your function with specific environment variables will also have access to the environment variables defined at the provider level. If an environment variable with the same key is defined at both the function and provider levels, the function-specific value overrides the provider-level default value. For example:
 
 ```yml
 # serverless.yml
@@ -242,26 +250,114 @@ service: service-name
 provider:
   name: aws
   environment:
+    SYSTEM_NAME: mySystem
     TABLE_NAME: tableName1
 
 functions:
-  hello: # this function will INHERIT the service level environment config above
+  hello:
+    # this function will have SYSTEM_NAME=mySystem and TABLE_NAME=tableName1 from the provider-level environment config above
     handler: handler.hello
-  users: # this function will OVERWRITE the service level environment config above
+  users:
+    # this function will have SYSTEM_NAME=mySystem from the provider-level environment config above
+    # but TABLE_NAME will be tableName2 because this more specific config will override the default above
     handler: handler.users
     environment:
       TABLE_NAME: tableName2
 ```
 
+## Tags
+
+Using the `tags` configuration makes it possible to add `key` / `value` tags to your functions.
+
+Those tags will appear in your AWS console and make it easier for you to group functions by tag or find functions with a common tag.
+
+```yml
+functions:
+  hello:
+    handler: handler.hello
+    tags:
+      foo: bar
+```
+
+Real-world use cases where tagging your functions is helpful include:
+
+- Cost estimations (tag functions with an environemnt tag: `environment: Production`)
+- Keeping track of legacy code (e.g. tag functions which use outdated runtimes: `runtime: nodejs0.10`)
+- ...
+
 ## Log Group Resources
 
-By default, the framework does not create LogGroups for your Lambdas. However this behavior will be deprecated soon and we'll be adding CloudFormation LogGroups resources as part of the stack. This makes it easy to clean up your log groups in the case you remove your service, and make the lambda IAM permissions much more specific and secure.
+By default, the framework will create LogGroups for your Lambdas. This makes it easy to clean up your log groups in the case you remove your service, and make the lambda IAM permissions much more specific and secure.
 
-To opt in for this feature now to avoid breaking changes later, add the following to your provider config in serverless.yml:
+
+## Versioning Deployed Functions
+
+By default, the framework creates function versions for every deploy. This behavior is optional, and can be turned off in cases where you don't invoke past versions by their qualifier. If you would like to do this, you can invoke your functions as `arn:aws:lambda:....:function/myFunc:3` to invoke version 3 for example.
+
+To turn off this feature, set the provider-level option `versionFunctions`.
 
 ```yml
 provider:
-  cfLogs: true
+  versionFunctions: false
 ```
 
-If you get a CloudFormation error saying that log group already exists, you have to remove it first from AWS console, then deploy, otherwise for new services this should work out of the box.
+These versions are not cleaned up by serverless, so make sure you use a plugin or other tool to prune sufficiently old versions. The framework can't clean up versions because it doesn't have information about whether older versions are invoked or not. This feature adds to the number of total stack outputs and resources because a function version is a separate resource from the function it refers to.
+
+## DeadLetterConfig
+
+You can setup `DeadLetterConfig` with the help of a SNS topic and the `onError` config parameter.
+
+The SNS topic needs to be created beforehand and provided as an `arn` on the function level.
+
+**Note:** You can only provide one `onError` config per function.
+
+### DLQ with SNS
+
+```yml
+service: service
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+
+functions:
+  hello:
+    handler: handler.hello
+    onError: arn:aws:sns:us-east-1:XXXXXX:test
+```
+
+### DLQ with SQS
+
+The `onError` config currently only supports SNS topic arns due to a race condition when using SQS queue arns and updating the IAM role.
+
+We're working on a fix so that SQS queue arns will be supported in the future.
+
+## KMS Keys
+
+AWS Lambda uses [AWS Key Management Service (KMS)](https://aws.amazon.com/kms/) to encrypt your environment variables at rest.
+
+The `awsKmsKeyArn` config variable enables you a way to define your own KMS key which should be used for encryption.
+
+```yml
+service:
+  name: service-name
+  awsKmsKeyArn: arn:aws:kms:us-east-1:XXXXXX:key/some-hash
+
+provider:
+  name: aws
+  environment:
+    TABLE_NAME: tableName1
+
+functions:
+  hello: # this function will OVERWRITE the service level environment config above
+    handler: handler.hello
+    awsKmsKeyArn: arn:aws:kms:us-east-1:XXXXXX:key/some-hash
+    environment:
+      TABLE_NAME: tableName2
+  goodbye: # this function will INHERIT the service level environment config above
+    handler: handler.goodbye
+```
+
+### Secrets using environment variables and KMS
+
+When storing secrets in environment variables, AWS [strongly suggests](http://docs.aws.amazon.com/lambda/latest/dg/env_variables.html#env-storing-sensitive-data) encrypting sensitive information. AWS provides a [tutorial](http://docs.aws.amazon.com/lambda/latest/dg/tutorial-env_console.html) on using KMS for this purpose.

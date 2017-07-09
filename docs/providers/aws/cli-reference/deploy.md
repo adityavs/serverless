@@ -1,7 +1,7 @@
 <!--
 title: Serverless Framework Commands - AWS Lambda - Deploy
-menuText: Deploy
-menuOrder: 4
+menuText: deploy
+menuOrder: 5
 description: Deploy your service to the specified provider
 layout: Doc
 -->
@@ -10,35 +10,23 @@ layout: Doc
 ### [Read this on the main serverless docs site](https://www.serverless.com/framework/docs/providers/aws/cli-reference/deploy)
 <!-- DOCS-SITE-LINK:END -->
 
-# Deploy
+# AWS - deploy
 
-The `sls deploy` command deploys your service or an individual function.
-
-**Deploy entire service:**
+The `sls deploy` command deploys your entire service via CloudFormation.  Run this command when you have made infrastructure changes (i.e., you edited `serverless.yml`).  Use `serverless deploy function -f myFunction` when you have made code changes and you want to quickly upload your updated code to AWS Lambda.
 
 ```bash
 serverless deploy
 ```
 
-**Deploy a single function:**
-
-```bash
-serverless deploy function -f functionName
-```
-
-**Note:** `sls deploy function` is faster than a full service deploy and recommended for a faster development flow
-
 ## Options
-- `--function` or `-f` The name of the function which should be deployed (**Note:** only available when running
-`serverless deploy function`)
 - `--stage` or `-s` The stage in your service that you want to deploy to.
 - `--region` or `-r` The region in that stage that you want to deploy to.
-- `--noDeploy` or `-n` Skips the deployment steps and leaves artifacts in the `.serverless` directory
+- `--package` or `-p` path to a pre-packaged directory and skip packaging step.
 - `--verbose` or `-v` Shows all stack events during deployment, and display any Stack Output.
 
 ## Artifacts
 
-After the `serverless deploy` command runs all created deployment artifacts are placed in the `.serverless` folder of the service.
+After the `serverless deploy` command runs, the framework runs `serverless package` in the background first then deploys the generated package.
 
 ## Examples
 
@@ -60,20 +48,10 @@ serverless deploy --stage production --region eu-central-1
 With this example we've defined that we want our service to be deployed to the `production` stage in the region
 `eu-central-1`.
 
-## List existing deploys
+### Deployment from a pre-packaged directory
 
 ```bash
-serverless deploy list
+serverless deploy --package /path/to/package/directory
 ```
 
-Running this command will list your recent deployments available in your S3 deployment bucket. It will use stage and region from the provider config and show the timestamp of each deployment so you can roll back if necessary.
-
-## Provided lifecycle events
-- `deploy:cleanup`
-- `deploy:initialize`
-- `deploy:setupProviderConfiguration`
-- `deploy:createDeploymentArtifacts`
-- `deploy:compileFunctions`
-- `deploy:compileEvents`
-- `deploy:deploy`
-- `deploy:function:deploy`
+With this example, the packaging step will be skipped and the framework will start deploying the package from the `/path/to/package/directory` directory.

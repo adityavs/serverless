@@ -1,7 +1,7 @@
 <!--
 title: Serverless Framework Commands - AWS Lambda - Invoke
-menuText: Invoke
-menuOrder: 5
+menuText: invoke
+menuOrder: 8
 description: Invoke an AWS Lambda Function using the Serverless Framework
 layout: Doc
 -->
@@ -10,7 +10,7 @@ layout: Doc
 ### [Read this on the main serverless docs site](https://www.serverless.com/framework/docs/providers/aws/cli-reference/invoke)
 <!-- DOCS-SITE-LINK:END -->
 
-# Invoke
+# AWS - Invoke
 
 Invokes deployed function. It allows to send event data to the function, read logs and display other important information of the function invocation.
 
@@ -41,8 +41,8 @@ serverless invoke local --function functionName
 
 ## Options
 - `--function` or `-f` The name of the function in your service that you want to invoke locally. **Required**.
-- `--path` or `-p` The path to a json file holding input data to be passed to the invoked function. This path is relative to the
-root directory of the service. The json file should have event and context properties to hold your mocked event and context data.
+- `--path` or `-p` The path to a json file holding input data to be passed to the invoked function as the `event`. This path is relative to the
+root directory of the service.
 - `--data` or `-d` String data to be passed as an event to your function. Keep in mind that if you pass both `--path` and `--data`, the data included in the `--path` file will overwrite the data you passed with the `--data` flag.
 
 ## Examples
@@ -65,7 +65,7 @@ serverless invoke --function functionName --stage dev --region us-east-1 --data 
 #### Function invocation with data from standard input
 
 ```bash
-dataGenerator.js | serverless invoke --function functionName --stage dev --region us-east-1
+node dataGenerator.js | serverless invoke --function functionName --stage dev --region us-east-1
 ```
 
 #### Function invocation with logging
@@ -85,28 +85,13 @@ serverless invoke --function functionName --stage dev --region us-east-1 --path 
 This example will pass the json data in the `lib/data.json` file (relative to the root of the service) while invoking
 the specified/deployed function.
 
-#### Local function invocation
-
-```bash
-serverless invoke local --function functionName
-```
-
-This example will locally invoke your function.
-
-#### Local function invocation with event data
-
-You can input test data in `event.json` file inside your service directory:
+#### Example `data.json`
 
 ```json
 {
-  "foo": "bar"
+  "resource": "/",
+  "path": "/",
+  "httpMethod": "GET",
+  //  etc. //
 }
 ```
-
-and then pass it with the command
-
-```bash
-serverless invoke local --function functionName --path event.json
-```
-
-This example will locally invoke your function.

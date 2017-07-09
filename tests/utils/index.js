@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
@@ -7,24 +8,42 @@ const BbPromise = require('bluebird');
 const fse = require('fs-extra');
 const execSync = require('child_process').execSync;
 const AWS = require('aws-sdk');
-const Serverless = require('../../lib/Serverless');
 
-const serverless = new Serverless();
-serverless.init();
-const serverlessExec = path.join(serverless.config.serverlessPath, '..', 'bin', 'serverless');
+// mock to test functionality bound to a serverless plugin
+class ServerlessPlugin {
+  constructor(serverless, options, testSubject) {
+    this.options = options;
+    this.serverless = serverless;
+
+    Object.assign(
+      this,
+      testSubject
+    );
+  }
+}
+
+const serverlessExec = path.join(__dirname, '..', '..', 'bin', 'serverless');
 
 const getTmpDirPath = () => path.join(os.tmpdir(),
   'tmpdirs-serverless', 'serverless', crypto.randomBytes(8).toString('hex'));
 
 const getTmpFilePath = (fileName) => path.join(getTmpDirPath(), fileName);
 
+const replaceTextInFile = (filePath, subString, newSubString) => {
+  const fileContent = fs.readFileSync(filePath).toString();
+  fs.writeFileSync(filePath, fileContent.replace(subString, newSubString));
+};
+
 module.exports = {
   serverlessExec,
   getTmpDirPath,
   getTmpFilePath,
+  replaceTextInFile,
+  ServerlessPlugin,
 
   createTestService: (templateName, testServiceDir) => {
-    const serviceName = `service-${(new Date()).getTime().toString()}`;
+    const hrtime = process.hrtime();
+    const serviceName = `test-${hrtime[0]}-${hrtime[1]}`;
     const tmpDir = path.join(os.tmpdir(),
       'tmpdirs-serverless',
       'integration-test-suite',
@@ -40,12 +59,14 @@ module.exports = {
       fse.copySync(testServiceDir, tmpDir, { clobber: true, preserveTimestamps: true });
     }
 
-    execSync(`sed -i.bak s/${templateName}/${serviceName}/g serverless.yml`);
+    replaceTextInFile('serverless.yml', templateName, serviceName);
 
     process.env.TOPIC_1 = `${serviceName}-1`;
     process.env.TOPIC_2 = `${serviceName}-1`;
     process.env.BUCKET_1 = `${serviceName}-1`;
     process.env.BUCKET_2 = `${serviceName}-2`;
+    process.env.COGNITO_USER_POOL_1 = `${serviceName}-1`;
+    process.env.COGNITO_USER_POOL_2 = `${serviceName}-2`;
 
     // return the name of the CloudFormation stack
     return `${serviceName}-dev`;
@@ -68,6 +89,42 @@ module.exports = {
       });
   },
 
+  createSnsTopic(topicName) {
+    const SNS = new AWS.SNS({ region: 'us-east-1' });
+    BbPromise.promisifyAll(SNS, { suffix: 'Promised' });
+
+    const params = {
+      Name: topicName,
+    };
+
+    return SNS.createTopicPromised(params);
+  },
+
+  installPlugin: (installDir, PluginClass) => {
+    const pluginPkg = { name: path.basename(installDir), version: '0.0.0' };
+    const className = (new PluginClass()).constructor.name;
+    fse.outputFileSync(path.join(installDir, 'package.json'), JSON.stringify(pluginPkg), 'utf8');
+    fse.outputFileSync(path.join(installDir, 'index.js'),
+      `"use strict";\n${PluginClass.toString()}\nmodule.exports = ${className}`, 'utf8');
+  },
+
+  removeSnsTopic(topicName) {
+    const SNS = new AWS.SNS({ region: 'us-east-1' });
+    BbPromise.promisifyAll(SNS, { suffix: 'Promised' });
+
+    return SNS.listTopicsPromised()
+      .then(data => {
+        const topicArn = data.Topics.find(topic => RegExp(topicName, 'g')
+          .test(topic.TopicArn)).TopicArn;
+
+        const params = {
+          TopicArn: topicArn,
+        };
+
+        return SNS.deleteTopicPromised(params);
+      });
+  },
+
   publishSnsMessage(topicName, message) {
     const SNS = new AWS.SNS({ region: 'us-east-1' });
     BbPromise.promisifyAll(SNS, { suffix: 'Promised' });
@@ -84,6 +141,68 @@ module.exports = {
 
         return SNS.publishPromised(params);
       });
+  },
+
+  publishIotData(topic, message) {
+    const Iot = new AWS.Iot({ region: 'us-east-1' });
+    BbPromise.promisifyAll(Iot, { suffix: 'Promised' });
+
+    return Iot.describeEndpointPromised()
+      .then(data => {
+        const IotData = new AWS.IotData({ region: 'us-east-1', endpoint: data.endpointAddress });
+        BbPromise.promisifyAll(IotData, { suffix: 'Promised' });
+
+        const params = {
+          topic,
+          payload: new Buffer(message),
+        };
+
+        return IotData.publishPromised(params);
+      });
+  },
+
+  putCloudWatchEvents(sources) {
+    const cwe = new AWS.CloudWatchEvents({ region: 'us-east-1' });
+    BbPromise.promisifyAll(cwe, { suffix: 'Promised' });
+
+    const entries = [];
+    sources.forEach(source => {
+      entries.push({
+        Source: source,
+        DetailType: 'serverlessDetailType',
+        Detail: '{ "key1": "value1" }',
+      });
+    });
+    const params = {
+      Entries: entries,
+    };
+    return cwe.putEventsPromised(params);
+  },
+
+  getCognitoUserPoolId(userPoolName) {
+    const cisp = new AWS.CognitoIdentityServiceProvider({ region: 'us-east-1' });
+    BbPromise.promisifyAll(cisp, { suffix: 'Promised' });
+
+    const params = {
+      MaxResults: 50,
+    };
+
+    return cisp.listUserPoolsPromised(params)
+      .then((data) => data.UserPools.find((userPool) =>
+        RegExp(userPoolName, 'g').test(userPool.Name)).Id
+      );
+  },
+
+  createCognitoUser(userPoolId, username, password) {
+    const cisp = new AWS.CognitoIdentityServiceProvider({ region: 'us-east-1' });
+    BbPromise.promisifyAll(cisp, { suffix: 'Promised' });
+
+    const params = {
+      UserPoolId: userPoolId,
+      Username: username,
+      TemporaryPassword: password,
+    };
+    return cisp.adminCreateUserPromised(params);
   },
 
   getFunctionLogs(functionName) {

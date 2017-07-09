@@ -10,13 +10,15 @@ layout: Doc
 ### [Read this on the main serverless docs site](https://www.serverless.com/framework/docs/providers/aws/guide/credentials)
 <!-- DOCS-SITE-LINK:END -->
 
-# Credentials
+# AWS - Credentials
 
-The Serverless Framework needs access to your cloud providers account so that it can create and manage resources on your behalf.
+The Serverless Framework needs access to your cloud provider's account so that it can create and manage resources on your behalf.
 
 Here we'll provide setup instructions for different cloud provider accounts. Just pick the one for your provider and follow the steps to get everything in place for Serverless.
 
-At this time, the Serverless Framework supports only Amazon Web Services, but support for other providers is in the works.
+This guide is for the Amazon Web Services (AWS) provider, so we'll step through the process of setting up credential for AWS and using them with Serverless.
+
+[Watch the video on setting up credentials](https://www.youtube.com/watch?v=HSd9uYj2LJA)
 
 ## Amazon Web Services
 
@@ -24,9 +26,9 @@ At this time, the Serverless Framework supports only Amazon Web Services, but su
 
 Here's how to set up the Serverless Framework with your Amazon Web Services account.
 
-If you're new to Amazon Web Services, make sure you put in a credit card.  
+If you're new to Amazon Web Services, make sure you put in a credit card.
 
-New AWS users get access to the [AWS Free Tier](https://aws.amazon.com/free/), which lets you use many AWS resources for free for 1 year, like [AWS Lambda](https://aws.amazon.com/lambda/pricing/). New AWS users won't be charged for signing up.
+All AWS users get access to the Free Tier for [AWS Lambda](https://aws.amazon.com/lambda/pricing/). AWS Lambda is part of the non-expiring [AWS Free Tier](https://aws.amazon.com/free/#AWS_FREE_TIER).
 
 If you don't have a credit card set up, you may not be able to deploy your resources and you may run into this error:
 
@@ -44,17 +46,13 @@ To let the Serverless Framework access your AWS account, we're going to **create
 
 1. Create or login to your Amazon Web Services Account and go to the Identity & Access Management (IAM) page.
 
-2. Click on **Users** and then **Create New Users**. Enter a name in the first field to remind you this User is the Framework, like `serverless-admin`.  Then click **Create**.  Later, you can create different IAM Users for different apps and different stages of those apps.  That is, if you don't use separate AWS accounts for stages/apps, which is most common.
+2. Click on **Users** and then **Add user**. Enter a name in the first field to remind you this User is the Framework, like `serverless-admin`. Enable **Programmatic access** by clicking the checkbox. Click **Next** to go through to the Permissions page. Click on **Attach existing policies directly**. Search for and select **AdministratorAccess** then click **Next: Review**. Check everything looks good and click **Create user**. Later, you can create different IAM Users for different apps and different stages of those apps.  That is, if you don't use separate AWS accounts for stages/apps, which is most common.
 
 3. View and copy the **API Key** & **Secret** to a temporary place. You'll need it in the next step.
 
-4. In the User record in the AWS IAM Dashboard, look for **Managed Policies** on the **Permissions** tab and click **Attach Policy**.
-
-5. In the next screen, search for and select **AdministratorAccess** then click **Attach**.
-
 ### Using AWS Access Keys
 
-You can configure the Serverless Framework to use your AWS **API Key** & **Secret** two ways:
+You can configure the Serverless Framework to use your AWS **API Key** & **Secret** in two ways:
 
 #### Quick Setup
 
@@ -81,7 +79,7 @@ Here's an example how you can configure the `default` AWS profile:
 serverless config credentials --provider aws --key AKIAIOSFODNN7EXAMPLE --secret wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 ```
 
-Take a look at the [`config` CLI reference](../cli-reference/config.md) for more information about credential configuration.
+Take a look at the [`config` CLI reference](../cli-reference/config-credentials.md) for more information about credential configuration.
 
 ##### Setup with the `aws-cli`
 
@@ -95,7 +93,7 @@ Default region name [None]: us-west-2
 Default output format [None]: ENTER
 ```
 
-Credentials are stored in INI format in `~/.aws/credentials`, which you can edit directly if needed. Read more about that file in the [AWS documentation](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-config-files)
+Credentials are stored in INI format in `~/.aws/credentials`, which you can edit directly if needed. You can change the path to the credentials file via the AWS_SHARED_CREDENTIALS_FILE environment variable. Read more about that file in the [AWS documentation](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-config-files)
 
 You can even set up different profiles for different accounts, which can be used by Serverless as well. To specify a default profile to use, you can add a `profile` setting to your `provider` configuration in `serverless.yml`:
 
@@ -103,9 +101,39 @@ You can even set up different profiles for different accounts, which can be used
 service: new-service
 provider:
   name: aws
-  runtime: nodejs4.3
+  runtime: nodejs6.10
   stage: dev
   profile: devProfile
+```
+
+##### Use an existing AWS Profile
+
+To easily switch between projects without the need to do `aws configure` every time you can use environment variables.
+For example you define different profiles in `~/.aws/credentials`
+
+```ini
+[profileName1]
+aws_access_key_id=***************
+aws_secret_access_key=***************
+
+[profileName2]
+aws_access_key_id=***************
+aws_secret_access_key=***************
+```
+
+Now you can switch per project (/ API) by executing once when you start your project:
+
+`export AWS_PROFILE="profileName2" && export AWS_REGION=eu-west-1`.
+
+in the Terminal. Now everything is set to execute all the `serverless` CLI options like `sls deploy`.
+The AWS region setting is to prevent issues with specific services, so adapt if you need another default region.
+
+##### Using the `aws-profile` option
+
+You can always speficy the profile which should be used via the `aws-profile` option like this:
+
+```bash
+serverless deploy --aws-profile devProfile
 ```
 
 #### Per Stage Profiles
@@ -118,7 +146,7 @@ This example `serverless.yml` snippet will load the profile depending upon the s
 service: new-service
 provider:
   name: aws
-  runtime: nodejs4.3
+  runtime: nodejs6.10
   stage: ${opt:stage, self:custom.defaultStage}
   profile: ${self:custom.profiles.${self:provider.stage}}
 custom:
@@ -127,3 +155,10 @@ custom:
     dev: devProfile
     prod: prodProfile
 ```
+
+#### Profile in place with the 'invoke local' command
+
+**Be aware!** Due to the way AWS IAM and the local environment works, if you invoke your lambda functions locally using the CLI command `serverless invoke local -f ...` the IAM role/profile could be (and probably is) different from the one set in the `serverless.yml` configuration file.
+Thus, most likely, a different set of permissions will be in place, altering the interaction between your lambda functions and others AWS resources.
+
+*Please, refer to the `invoke local` CLI command documentation for more details.*

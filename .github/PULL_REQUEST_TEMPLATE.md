@@ -6,7 +6,7 @@
 
 ## What did you implement:
 
-Closes #12345
+Closes #XXXXX
 
 <!--
 Briefly describe the feature if no issue exists for this PR
@@ -28,10 +28,9 @@ to review a PR, the faster we can review and merge it.
 Examples:
 * serverless.yml - Fully functioning to easily deploy changes
 * Screenshots - Showing the difference between your output and the master
-* AWS CLI commands - To list AWS resources and show that the correct config is in place
+* Cloud Configuration - List cloud resources and show that the correct configuration is in place (e.g. AWS CLI commands)
 * Other - Anything else that comes to mind to help us evaluate
 -->
-
 
 ## Todos:
 
@@ -39,9 +38,9 @@ Examples:
 - [ ] Write documentation
 - [ ] Fix linting errors
 - [ ] Make sure code coverage hasn't dropped
-- [ ] Provide verification config/commands/resources
-- [ ] Enable ["Allow edits from maintainers"](https://help.github.com/articles/allowing-changes-to-a-pull-request-branch-created-from-a-fork/) for this PR
-- [ ] Change ready for review message below
-
+- [ ] Provide verification config / commands / resources
+- [ ] Enable "Allow edits from maintainers" for this PR
+- [ ] Update the messages below
 
 ***Is this ready for review?:*** NO
+***Is it a breaking change?:*** NO

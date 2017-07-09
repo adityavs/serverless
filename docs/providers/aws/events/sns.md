@@ -38,9 +38,9 @@ functions:
 
 This will run both functions for a message sent to the dispatch topic.
 
-## Creating the permission for a pre-existing topic
+## Using a pre-existing topic
 
-If you want to run a function from a preexisting SNS topic you need to connect the topic to a Lambda function yourself. By defining a topic arn inside of the SNS topic we're able to set up the Lambda Permission so SNS is allowed to call this function.
+If an `arn:` is specified, the framework will give permission to the topic to invoke the function and subscribe the function to the topic.
 
 ```yml
 functions:
@@ -50,11 +50,39 @@ functions:
       - sns: arn:xxx
 ```
 
-Just make sure your function is already subscribed to the topic, as there's no way to add subscriptions to pre-existing topics in CF. The framework will just give permission to SNS to invoke the function.
+```yml
+functions:
+  dispatcher:
+    handler: dispatcher.dispatch
+    events:
+      - sns:
+          arn: arn:xxx
+```
+
+Or with intrinsic CloudFormation function like `Fn::Join` or `Fn::GetAtt`.
+
+```yml
+functions:
+  dispatcher:
+    handler: dispatcher.dispatch
+    events:
+      - sns:
+          arn:
+            Fn::Join:
+              - ""
+              - - "arn:aws:sns:"
+                - Ref: "AWS::Region"
+                - ":"
+                - Ref: "AWS::AccountId"
+                - ":MyCustomTopic"
+          topicName: MyCustomTopic
+```
+
+**Note:** It is important to know that `topicArn` must contain the value given in the `topicName` property.
 
 ## Setting a display name
 
-This event definition ensures that the `aggregator` function get's called every time a message is sent to the
+This event definition ensures that the `aggregator` function gets called every time a message is sent to the
 `aggregate` topic. `Data aggregation pipeline` will be shown in the AWS console so that the user can understand what the
 SNS topic is used for.
 

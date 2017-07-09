@@ -1,7 +1,7 @@
 <!--
 title: Serverless Framework Commands - AWS Lambda - Info
-menuText: Info
-menuOrder: 8
+menuText: info
+menuOrder: 12
 description: Display information about your deployed service and the AWS Lambda Functions, Events and AWS Resources it contains.
 layout: Doc
 -->
@@ -10,7 +10,7 @@ layout: Doc
 ### [Read this on the main serverless docs site](https://www.serverless.com/framework/docs/providers/aws/cli-reference/info)
 <!-- DOCS-SITE-LINK:END -->
 
-# Info
+# AWS - Info
 
 Displays information about the deployed service.
 
@@ -47,7 +47,7 @@ api keys:
 endpoints:
   GET - https://dxaynpuzd4.execute-api.us-east-1.amazonaws.com/dev/users
 functions:
-  my-serverless-service-dev-hello: arn:aws:lambda:us-east-1:377024778620:function:my-serverless-service-dev-hello
+  my-serverless-service-dev-hello
 ```
 
 #### Verbose
@@ -66,14 +66,11 @@ api keys:
 endpoints:
   GET - https://dxaynpuzd4.execute-api.us-east-1.amazonaws.com/dev/users
 functions:
-  my-serverless-service-dev-hello: arn:aws:lambda:us-east-1:377024778620:function:my-serverless-service-dev-hello
+  my-serverless-service-dev-hello
 
 Stack Outputs
 CloudFrontUrl: d2d10e2tyk1pei.cloudfront.net
-ListScreenshotsLambdaFunctionArn: arn:aws:lambda:us-east-1:377024778620:function:lambda-screenshots-dev-listScreenshots
 ScreenshotBucket: dev-svdgraaf-screenshots
-CreateThumbnailsLambdaFunctionArn: arn:aws:lambda:us-east-1:377024778620:function:lambda-screenshots-dev-createThumbnails
-TakeScreenshotLambdaFunctionArn: arn:aws:lambda:us-east-1:377024778620:function:lambda-screenshots-dev-takeScreenshot
 ServiceEndpoint: https://12341jc801.execute-api.us-east-1.amazonaws.com/dev
 ServerlessDeploymentBucketName: lambda-screenshots-dev-serverlessdeploymentbucket-15b7pkc04f98a
 ```

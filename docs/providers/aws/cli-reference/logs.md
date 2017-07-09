@@ -1,7 +1,7 @@
 <!--
 title: Serverless Framework Commands - AWS Lambda - Logs
-menuText: Logs
-menuOrder: 6
+menuText: logs
+menuOrder: 10
 description: View logs of your AWS Lambda Function within your terminal using the Serverless Framework
 layout: Doc
 -->
@@ -10,12 +10,15 @@ layout: Doc
 ### [Read this on the main serverless docs site](https://www.serverless.com/framework/docs/providers/aws/cli-reference/logs)
 <!-- DOCS-SITE-LINK:END -->
 
-# Logs
+# AWS - Logs
 
 Lets you watch the logs of a specific function.
 
 ```bash
 serverless logs -f hello
+
+# Optionally tail the logs with -t
+serverless logs -f hello -t
 ```
 
 ## Options

@@ -12,13 +12,11 @@ const Utils = require('../../../../../utils/index');
 const CF = new AWS.CloudFormation({ region: 'us-east-1' });
 BbPromise.promisifyAll(CF, { suffix: 'Promised' });
 
-describe('AWS - API Gateway (Integration: Lambda): CORS test', function () {
-  this.timeout(0);
-
+describe('AWS - API Gateway (Integration: Lambda): CORS test', () => {
   let stackName;
   let endpointBase;
 
-  before(() => {
+  beforeAll(() => {
     stackName = Utils.createTestService('aws-nodejs', path.join(__dirname, 'service'));
     Utils.deployService();
   });
@@ -38,7 +36,8 @@ describe('AWS - API Gateway (Integration: Lambda): CORS test', function () {
         const headers = response.headers;
 
         expect(headers.get('access-control-allow-headers'))
-          .to.equal('Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token');
+          .to.equal('Content-Type,X-Amz-Date,Authorization,X-Api-Key,'
+            + 'X-Amz-Security-Token,X-Amz-User-Agent');
         expect(headers.get('access-control-allow-methods')).to.equal('OPTIONS,GET');
         expect(headers.get('access-control-allow-origin')).to.equal('*');
       })
@@ -50,13 +49,14 @@ describe('AWS - API Gateway (Integration: Lambda): CORS test', function () {
         const headers = response.headers;
 
         expect(headers.get('access-control-allow-headers'))
-          .to.equal('Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token');
+          .to.equal('Content-Type,X-Amz-Date,Authorization,X-Api-Key,'
+            + 'X-Amz-Security-Token,X-Amz-User-Agent');
         expect(headers.get('access-control-allow-methods')).to.equal('OPTIONS,GET');
         expect(headers.get('access-control-allow-origin')).to.equal('*');
       })
   );
 
-  after(() => {
+  afterAll(() => {
     Utils.removeService();
   });
 });

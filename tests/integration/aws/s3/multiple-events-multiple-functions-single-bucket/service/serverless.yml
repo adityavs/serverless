@@ -2,8 +2,7 @@ service: aws-nodejs
 
 provider:
   name: aws
-  runtime: nodejs4.3
-  cfLogs: true
+  runtime: nodejs6.10
 
 functions:
   create:
