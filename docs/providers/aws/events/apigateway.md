@@ -12,6 +12,39 @@ layout: Doc
 
 # API Gateway
 
+- [Lambda Proxy Integration](#lambda-proxy-integration)
+  - [Simple HTTP Endpoint](#simple-http-endpoint)
+  - [Example "LAMBDA-PROXY" event (default)](#example-lambda-proxy-event-default)
+  - [HTTP Endpoint with Extended Options](#http-endpoint-with-extended-options)
+  - [Enabling CORS](#enabling-cors)
+  - [HTTP Endpoints with `AWS_IAM` Authorizers](#http-endpoints-with-awsiam-authorizers)
+  - [HTTP Endpoints with Custom Authorizers](#http-endpoints-with-custom-authorizers)
+  - [Catching Exceptions In Your Lambda Function](#catching-exceptions-in-your-lambda-function)
+  - [Setting API keys for your Rest API](#setting-api-keys-for-your-rest-api)
+  - [Request Parameters](#request-parameters)
+- [Lambda Integration](#lambda-integration)
+  - [Example "LAMBDA" event (before customization)](#example-lambda-event-before-customization)
+  - [Request templates](#request-templates)
+    - [Default Request Templates](#default-request-templates)
+    - [Custom Request Templates](#custom-request-templates)
+    - [Pass Through Behavior](#pass-through-behavior)
+  - [Responses](#responses)
+    - [Custom Response Headers](#custom-response-headers)
+  - [Custom Response Templates](#custom-response-templates)
+  - [Status codes](#status-codes)
+    - [Available Status Codes](#available-status-codes)
+    - [Using Status Codes](#using-status-codes)
+    - [Custom Status Codes](#custom-status-codes)
+- [Setting an HTTP Proxy on API Gateway](#setting-an-http-proxy-on-api-gateway)
+- [Share API Gateway and API Resources](#share-api-gateway-and-api-resources)
+
+_Are you looking for tutorials on using API Gateway? Check out the following resources:_
+
+> - [Add a custom domain for your API Gateway](https://serverless.com/blog/serverless-api-gateway-domain/)
+> - [Deploy multiple micro-services under the same domain](https://serverless.com/blog/api-gateway-multiple-services/)
+> - [Create a Node REST API with Express.js](https://serverless.com/blog/serverless-express-rest-api/)
+> - [Make a Serverless GraphQL API](https://serverless.com/blog/make-serverless-graphql-api-using-lambda-dynamodb/)
+
 To create HTTP endpoints as Event sources for your AWS Lambda Functions, use the Serverless Framework's easy AWS API Gateway Events syntax.
 
 There are five ways you can configure your HTTP endpoints to integrate with your AWS Lambda Functions:
@@ -72,6 +105,69 @@ module.exports.hello = function(event, context, callback) {
 JSON.parse(event.body);
 ```
 
+### Example "LAMBDA-PROXY" event (default)
+
+```json
+{
+    "resource": "/",
+    "path": "/",
+    "httpMethod": "POST",
+    "headers": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-GB,en-US;q=0.8,en;q=0.6,zh-CN;q=0.4",
+        "cache-control": "max-age=0",
+        "CloudFront-Forwarded-Proto": "https",
+        "CloudFront-Is-Desktop-Viewer": "true",
+        "CloudFront-Is-Mobile-Viewer": "false",
+        "CloudFront-Is-SmartTV-Viewer": "false",
+        "CloudFront-Is-Tablet-Viewer": "false",
+        "CloudFront-Viewer-Country": "GB",
+        "content-type": "application/x-www-form-urlencoded",
+        "Host": "j3ap25j034.execute-api.eu-west-2.amazonaws.com",
+        "origin": "https://j3ap25j034.execute-api.eu-west-2.amazonaws.com",
+        "Referer": "https://j3ap25j034.execute-api.eu-west-2.amazonaws.com/dev/",
+        "upgrade-insecure-requests": "1",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36",
+        "Via": "2.0 a3650115c5e21e2b5d133ce84464bea3.cloudfront.net (CloudFront)",
+        "X-Amz-Cf-Id": "0nDeiXnReyHYCkv8cc150MWCFCLFPbJoTs1mexDuKe2WJwK5ANgv2A==",
+        "X-Amzn-Trace-Id": "Root=1-597079de-75fec8453f6fd4812414a4cd",
+        "X-Forwarded-For": "50.129.117.14, 50.112.234.94",
+        "X-Forwarded-Port": "443",
+        "X-Forwarded-Proto": "https"
+    },
+    "queryStringParameters": null,
+    "pathParameters": null,
+    "stageVariables": null,
+    "requestContext": {
+        "path": "/dev/",
+        "accountId": "125002137610",
+        "resourceId": "qdolsr1yhk",
+        "stage": "dev",
+        "requestId": "0f2431a2-6d2f-11e7-b799-5152aa497861",
+        "identity": {
+            "cognitoIdentityPoolId": null,
+            "accountId": null,
+            "cognitoIdentityId": null,
+            "caller": null,
+            "apiKey": "",
+            "sourceIp": "50.129.117.14",
+            "accessKey": null,
+            "cognitoAuthenticationType": null,
+            "cognitoAuthenticationProvider": null,
+            "userArn": null,
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36",
+            "user": null
+        },
+        "resourcePath": "/",
+        "httpMethod": "POST",
+        "apiId": "j3azlsj0c4"
+    },
+    "body": "postcode=LS17FR",
+    "isBase64Encoded": false
+}
+```
+
 ### HTTP Endpoint with Extended Options
 
 Here we've defined an POST endpoint for the path `posts/create`.
@@ -127,6 +223,21 @@ functions:
 ```
 
 Configuring the `cors` property sets  [Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin), [Access-Control-Allow-Headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers), [Access-Control-Allow-Methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods),[Access-Control-Allow-Credentials](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials) headers in the CORS preflight response.
+
+To enable the `Access-Control-Max-Age` preflight response header, set the `maxAge` property in the `cors` object:
+
+```yml
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          path: hello
+          method: get
+          cors:
+            origin: '*'
+            maxAge: 86400
+```
 
 If you want to use CORS with the lambda-proxy integration, remember to include the `Access-Control-Allow-*` headers in your headers object, like this:
 
@@ -214,6 +325,7 @@ functions:
             resultTtlInSeconds: 0
             identitySource: method.request.header.Authorization
             identityValidationExpression: someRegex
+            type: token
   authorizerFunc:
     handler: handler.authorizerFunc
 ```
@@ -250,6 +362,24 @@ functions:
             identityValidationExpression: someRegex
 ```
 
+You can also use the Request Type Authorizer by setting the `type` property. In this case, your `identitySource` could contain multiple entries for your policy cache. The default `type` is 'token'.
+
+```yml
+functions:
+  create:
+    handler: posts.create
+    events:
+      - http:
+          path: posts/create
+          method: post
+          authorizer:
+            arn: xxx:xxx:Lambda-Name
+            resultTtlInSeconds: 0
+            identitySource: method.request.header.Authorization, context.identity.sourceIp
+            identityValidationExpression: someRegex
+            type: request
+```
+
 You can also configure an existing Cognito User Pool as the authorizer, as shown
 in the following example:
 
@@ -268,7 +398,7 @@ functions:
 If you are using the default `lambda-proxy` integration, your attributes will be
 exposed at `event.requestContext.authorizer.claims`.
 
-If you want control more control over which attributes are exposed as claims you
+If you want more control over which attributes are exposed as claims you
 can switch to `integration: lambda` and add the following configuration. The
 claims will be exposed at `events.cognitoPoolClaims`.
 
@@ -328,13 +458,30 @@ functions:
           private: true
 ```
 
-Please note that those are the API keys names, not the actual values. Once you deploy your service, the value of those API keys will be auto generated by AWS and printed on the screen for you to use.
+Please note that those are the API keys names, not the actual values. Once you deploy your service, the value of those API keys will be auto generated by AWS and printed on the screen for you to use. The values can be concealed from the output with the `--conceal` deploy option.
 
 Clients connecting to this Rest API will then need to set any of these API keys values in the `x-api-key` header of their request. This is only necessary for functions where the `private` property is set to true.
 
-## Lambda Integration
+### Configuring endpoint types
 
-This method is more complicated and involves a lot more configuration of the `http` event syntax.
+API Gateway [supports regional endpoints](https://aws.amazon.com/about-aws/whats-new/2017/11/amazon-api-gateway-supports-regional-api-endpoints/) for associating your API Gateway REST APIs with a particular region. This can reduce latency if your requests originate from the same region as your REST API and can be helpful in building multi-region applications.
+
+By default, the Serverless Framework deploys your REST API using the EDGE endpoint configuration. If you would like to use the REGIONAL configuration, set the `endpointType` parameter in your `provider` block.
+
+Here's an example configuration for setting the endpoint configuration for your service Rest API:
+
+```yml
+service: my-service
+provider:
+  name: aws
+  endpointType: REGIONAL
+functions:
+  hello:
+    events:
+      - http:
+          path: user/create
+          method: get
+```
 
 ### Request Parameters
 
@@ -348,7 +495,6 @@ functions:
       - http:
           path: posts/create
           method: post
-          integration: lambda
           request:
             parameters:
               querystrings:
@@ -369,11 +515,68 @@ functions:
       - http:
           path: posts/{id}
           method: get
-          integration: lambda
           request:
             parameters:
               paths:
                 id: true
+```
+
+## Lambda Integration
+
+This method is more complicated and involves a lot more configuration of the `http` event syntax.
+
+### Example "LAMBDA" event (before customization)
+
+**Refer to this only if you're using the non-default `LAMBDA` integration method**
+
+```json
+{
+    "body": {},
+    "method": "GET",
+    "principalId": "",
+    "stage": "dev",
+    "cognitoPoolClaims": {
+        "sub": ""
+    },
+    "enhancedAuthContext": {},
+    "headers": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-GB,en-US;q=0.8,en;q=0.6,zh-CN;q=0.4",
+        "CloudFront-Forwarded-Proto": "https",
+        "CloudFront-Is-Desktop-Viewer": "true",
+        "CloudFront-Is-Mobile-Viewer": "false",
+        "CloudFront-Is-SmartTV-Viewer": "false",
+        "CloudFront-Is-Tablet-Viewer": "false",
+        "CloudFront-Viewer-Country": "GB",
+        "Host": "ec5ycylws8.execute-api.us-east-1.amazonaws.com",
+        "upgrade-insecure-requests": "1",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36",
+        "Via": "2.0 f165ce34daf8c0da182681179e863c24.cloudfront.net (CloudFront)",
+        "X-Amz-Cf-Id": "l06CAg2QsrALeQcLAUSxGXbm8lgMoMIhR2AjKa4AiKuaVnnGsOFy5g==",
+        "X-Amzn-Trace-Id": "Root=1-5970ef20-3e249c0321b2eef14aa513ae",
+        "X-Forwarded-For": "94.117.120.169, 116.132.62.73",
+        "X-Forwarded-Port": "443",
+        "X-Forwarded-Proto": "https"
+    },
+    "query": {},
+    "path": {},
+    "identity": {
+        "cognitoIdentityPoolId": "",
+        "accountId": "",
+        "cognitoIdentityId": "",
+        "caller": "",
+        "apiKey": "",
+        "sourceIp": "94.197.120.169",
+        "accessKey": "",
+        "cognitoAuthenticationType": "",
+        "cognitoAuthenticationProvider": "",
+        "userArn": "",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36",
+        "user": ""
+    },
+    "stageVariables": {}
+}
 ```
 
 ### Request templates
@@ -524,10 +727,18 @@ functions:
 **Note:** The template is defined as plain text here. However you can also reference an external file with the help of
 the `${file(templatefile)}` syntax.
 
-### Status codes
+### Status Codes
 
 Serverless ships with default status codes you can use to e.g. signal that a resource could not be found (404) or that
 the user is not authorized to perform the action (401). Those status codes are regex definitions that will be added to your API Gateway configuration.
+
+***Note:*** Status codes as documented in this chapter relate to `lambda` integration method (as documented at the top of this page). If using default integration method `lambda-proxy` object with status code and message should be returned as in the example below:
+
+```javascript
+module.exports.hello = (event, context, callback) => {
+  callback(null, { statusCode: 404, body: "Not found", headers: { "Content-Type": "text/plain" } });
+}
+```
 
 #### Available Status Codes
 
@@ -659,3 +870,118 @@ endpoint of your proxy, and the URI you want to set a proxy to.
 
 Now that you have these two CloudFormation templates defined in your `serverless.yml` file, you can simply run
 `serverless deploy` and that will deploy these custom resources for you along with your service and set up a proxy on your Rest API.
+
+## Share API Gateway and API Resources
+
+As your application grows, you will likely need to break it out into multiple, smaller services. By default, each Serverless project generates a new API Gateway. However, you can share the same API Gateway between multiple projects by referencing its REST API ID and Root Resource ID in `serverless.yml` as follows:
+
+```yml
+service: service-name
+provider:
+  name: aws
+  apiGateway:
+    restApiId: xxxxxxxxxx # REST API resource ID. Default is generated by the framework
+    restApiRootResourceId: xxxxxxxxxx # Root resource, represent as / path
+
+functions:
+  ...
+
+```
+
+
+If your application has many nested paths, you might also want to break them out into smaller services. 
+
+```yml
+service: service-a
+provider:
+  apiGateway:
+    restApiId: xxxxxxxxxx
+    restApiRootResourceId: xxxxxxxxxx
+
+functions:
+  create:
+    handler: posts.create
+    events:
+      - http:
+          method: post
+          path: /posts
+```
+
+```yml
+service: service-b
+provider:
+  apiGateway:
+    restApiId: xxxxxxxxxx
+    restApiRootResourceId: xxxxxxxxxx
+
+functions:
+  create:
+    handler: posts.createComment
+    events:
+      - http:
+          method: post
+          path: /posts/{id}/comments
+```
+
+The above example services both reference the same parent path `/posts`. However, Cloudformation will throw an error if we try to generate an existing path resource. To avoid that, we reference the resource ID of `/posts`:
+
+```yml
+service: service-a
+provider:
+  apiGateway:
+    restApiId: xxxxxxxxxx
+    restApiRootResourceId: xxxxxxxxxx
+    restApiResources:
+      /posts: xxxxxxxxxx
+
+functions:
+  ...
+
+```
+
+```yml
+service: service-b
+provider:
+  apiGateway:
+    restApiId: xxxxxxxxxx
+    restApiRootResourceId: xxxxxxxxxx
+    restApiResources:
+      /posts: xxxxxxxxxx
+
+functions:
+  ...
+
+```
+
+You can define more than one path resource, but by default, Serverless will generate them from the root resource.
+`restApiRootResourceId` is optional if a path resource isn't required for the root (`/`).
+
+```yml
+service: service-a
+provider:
+  apiGateway:
+    restApiId: xxxxxxxxxx
+    # restApiRootResourceId: xxxxxxxxxx # Optional
+    restApiResources:
+      /posts: xxxxxxxxxx
+      /categories: xxxxxxxxx
+
+
+functions:
+  listPosts:
+    handler: posts.list
+    events:
+      - http:
+          method: get
+          path: /posts
+
+  listCategories:
+    handler: categories.list
+    events:
+      - http:
+          method: get
+          path: /categories
+
+```
+
+To be more in line with best practices and to be CI/CD friendly, we should define CloudFormation resources from an earlier service, then use Cross-Stack References from it in future projects.
